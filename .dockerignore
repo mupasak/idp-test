@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Version control
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# IDE / editor
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
