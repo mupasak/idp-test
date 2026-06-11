@@ -11,7 +11,7 @@ env:
   IMAGE_NAME: idp-test
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,3 +42,41 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
+  update-gitops-manifest:
+      needs: build-and-push
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout GitOps Infra Repo
+          uses: actions/checkout@v4
+          with:
+            repository: ${{ env.GITOPS_REPO }}
+            token: ${{ secrets.GITOPS_REPO_PAT }}
+            ref: main
+
+        - name: Determine Target Environment
+          id: set-env
+          run: |
+            # Example Logic: Default to develop, change based on branch/tags if necessary
+            TARGET_ENV="develop"
+            if [[ "${{ github.ref }}" == "refs/heads/release/staging" ]]; then
+              TARGET_ENV="staging"
+            elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+              TARGET_ENV="prod"
+            fi
+            echo "target_env=$TARGET_ENV" >> $GITHUB_OUTPUT
+
+        - name: Update Target Environment Image Tag
+          run: |
+            sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
+            
+            # Target the exact environment file dynamically
+            ENV_FILE="helm-charts/python-app/environments/${{ steps.set-env.outputs.target_env }}-values.yaml"
+            yq -i '.image.tag = "${{ github.sha }}"' $ENV_FILE
+
+        - name: Commit and Push Changes to GitOps Repo
+          run: |
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add helm-charts/python-app/environments/
+            git commit -m "chore(ci): update ${{ steps.set-env.outputs.target_env }} image tag to ${{ github.sha }} [skip ci]"
+            git push origin main
