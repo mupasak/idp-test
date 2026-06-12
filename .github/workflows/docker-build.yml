@@ -55,7 +55,7 @@ jobs:
           with:
             repository: ${{ env.GITOPS_REPO }}
             token: ${{ secrets.IDP_REPO_PAT }}
-            ref: main
+            ref: idp-test
 
         - name: Determine Target Environment
           id: set-env
